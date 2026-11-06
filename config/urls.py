@@ -37,6 +37,7 @@ urlpatterns = [
     path("api/v1/sellers/", include("sellers.urls")),
     path("api/v1/", include("catalog.urls")),
     path("api/v1/", include("orders.urls")),
+    
 ]
 
 if settings.DEBUG:

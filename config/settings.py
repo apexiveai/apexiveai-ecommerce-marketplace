@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import dj_database_url
 from dotenv import load_dotenv
@@ -27,6 +28,20 @@ def env_list(name: str, default: str = "") -> list[str]:
         for item in os.getenv(name, default).split(",")
         if item.strip()
     ]
+
+
+def with_loopback_origin_aliases(origins: list[str]) -> list[str]:
+    aliases = set(origins)
+    for origin in origins:
+        parsed_origin = urlsplit(origin)
+        hostname = parsed_origin.hostname
+        if hostname not in {"localhost", "127.0.0.1"}:
+            continue
+
+        alias_host = "127.0.0.1" if hostname == "localhost" else "localhost"
+        port = f":{parsed_origin.port}" if parsed_origin.port else ""
+        aliases.add(f"{parsed_origin.scheme}://{alias_host}{port}")
+    return sorted(aliases)
 
 
 # ============================================================
@@ -61,7 +76,7 @@ if not DEBUG:
 
 ALLOWED_HOSTS = env_list(
     "DJANGO_ALLOWED_HOSTS",
-    "127.0.0.1,localhost",
+    "127.0.0.1,testserver,localhost",
 )
 
 if not DEBUG and not ALLOWED_HOSTS:
@@ -84,6 +99,7 @@ INSTALLED_APPS = [
 
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "django_filters",
 
@@ -227,14 +243,18 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # CORS / CSRF
 # ============================================================
 
-CORS_ALLOWED_ORIGINS = env_list(
-    "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000",
+CORS_ALLOWED_ORIGINS = with_loopback_origin_aliases(
+    env_list(
+        "CORS_ALLOWED_ORIGINS",
+        "http://localhost:3000",
+    )
 )
 
-CSRF_TRUSTED_ORIGINS = env_list(
-    "CSRF_TRUSTED_ORIGINS",
-    "http://localhost:3000",
+CSRF_TRUSTED_ORIGINS = with_loopback_origin_aliases(
+    env_list(
+        "CSRF_TRUSTED_ORIGINS",
+        "http://localhost:3000",
+    )
 )
 
 CORS_ALLOW_CREDENTIALS = env_bool(
